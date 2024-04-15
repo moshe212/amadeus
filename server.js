@@ -4,7 +4,9 @@ const bodyParser = require("body-parser");
 const nodemailer = require("nodemailer");
 const cors = require("cors");
 const port = 3000;
+const dotenv = require("dotenv");
 
+dotenv.config();
 const puppeteer = require("puppeteer");
 
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -45,10 +47,10 @@ const sendMail = (an, mail) => {
   });
 };
 
-const pup = async () => {
-  const an = "AN25MARTLVLON";
-  const ss = "SS1G2";
-  const mail = "148mor@gmail.com";
+const pup = async (an, ss, mail, userName, officeId, password) => {
+  // const an = "AN25MARTLVLON";
+  // const ss = "SS1G2";
+  // const mail = "148mor@gmail.com";
 
   const browser = await puppeteer.launch({ headless: false }); // Set headless: false to see the browser
   const page = await browser.newPage();
@@ -61,9 +63,13 @@ const pup = async () => {
   await page.waitForSelector("#usernameInput", { visible: true });
 
   // Type into input fields
-  await page.type("#usernameInput", "3009922");
-  await page.type("#officeIdInput", "TLVI32159");
-  await page.type("#passwordInput", "moti2025");
+  await page.type("#usernameInput", userName);
+  await page.type("#officeIdInput", officeId);
+  await page.type("#passwordInput", password);
+
+  // await page.type("#usernameInput", "3009922");
+  // await page.type("#officeIdInput", "TLVI32159");
+  // await page.type("#passwordInput", "moti2025");
 
   // Click the sign in button
   //   await Promise.all([
@@ -153,7 +159,15 @@ const pup = async () => {
   //   await browser.close();
 };
 
-pup();
+const an = process.env.an;
+const ss = process.env.ss;
+const mail = process.env.mail;
+const userName = process.env.userName;
+const officeId = process.env.OfficeID;
+const password = process.env.Password;
+
+console.log(an, ss, mail, userName, officeId, password);
+pup(an, ss, mail, userName, officeId, password);
 
 app.get("/", (req, res) => {
   res.redirect("/he");
