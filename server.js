@@ -47,7 +47,15 @@ const sendMail = (an, mail) => {
   });
 };
 
-const pup = async (an, ss, mail, userName, officeId, password) => {
+const pup = async (
+  an,
+  ss,
+  mail,
+  userName,
+  officeId,
+  password,
+  doRunAnAfterOneTime
+) => {
   // const an = "AN25MARTLVLON";
   // const ss = "SS1G2";
   // const mail = "148mor@gmail.com";
@@ -140,8 +148,12 @@ const pup = async (an, ss, mail, userName, officeId, password) => {
         });
       }
 
-      if (lastCmdResponseText.includes("REQUEST NEW AVAILABILITY")) {
-        await page.type(".cmdPrompt", "an08martlvnyc");
+      if (
+        lastCmdResponseText.includes("REQUEST NEW AVAILABILITY") ||
+        doRunAnAfterOneTime
+      ) {
+        console.log("doRunAnAfterOne");
+        await page.type(".cmdPrompt", an);
         await page.keyboard.press("Enter");
         await page.evaluate(() => {
           return new Promise((resolve) => {
@@ -162,12 +174,13 @@ const pup = async (an, ss, mail, userName, officeId, password) => {
 const an = process.env.an;
 const ss = process.env.ss;
 const mail = process.env.mail;
-const userName = process.env.userName;
+const user_name = process.env.user;
 const officeId = process.env.OfficeID;
 const password = process.env.Password;
+const doRunAnAfterOneTime = process.env.doRunAnAfterOneTime;
 
-console.log(an, ss, mail, userName, officeId, password);
-pup(an, ss, mail, userName, officeId, password);
+console.log(an, ss, mail, user_name, officeId, password, doRunAnAfterOneTime);
+pup(an, ss, mail, user_name, officeId, password, doRunAnAfterOneTime);
 
 app.get("/", (req, res) => {
   res.redirect("/he");
