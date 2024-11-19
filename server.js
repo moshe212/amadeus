@@ -50,6 +50,7 @@ const sendMail = (an, mail) => {
 const pup = async (
   an,
   ss,
+  sb,
   mail,
   userName,
   officeId,
@@ -121,14 +122,23 @@ const pup = async (
   const checkAvailability = async () => {
     console.log("Counter: ", counter);
 
-    await page.type(".cmdPrompt", ss);
-    await page.keyboard.press("Enter");
+    // Run SB command only if sb param exists
+    if (sb) {
+      await page.type(".cmdPrompt", sb);
+      await page.keyboard.press("Enter");
+      await page.evaluate(
+        () => new Promise((resolve) => setTimeout(resolve, 3000))
+      );
+    } else {
+      await page.type(".cmdPrompt", ss);
+      await page.keyboard.press("Enter");
 
-    await page.evaluate(() => {
-      return new Promise((resolve) => {
-        setTimeout(resolve, 3000); // waits for 3 second
+      await page.evaluate(() => {
+        return new Promise((resolve) => {
+          setTimeout(resolve, 3000); // waits for 3 second
+        });
       });
-    });
+    }
 
     const lastCmdResponseText = await page.evaluate(() => {
       const elements = document.querySelectorAll(".cmdResponse");
@@ -289,30 +299,33 @@ const pup = async (
             //   timeout: 120000,
             // });
 
-            await page.type(".cmdPrompt", an);
-            await page.keyboard.press("Enter");
-            await page.evaluate(() => {
-              return new Promise((resolve) => {
-                setTimeout(resolve, 5000); // waits for 5 second
+            if (!sb) {
+              await page.type(".cmdPrompt", an);
+              await page.keyboard.press("Enter");
+              await page.evaluate(() => {
+                return new Promise((resolve) => {
+                  setTimeout(resolve, 5000); // waits for 5 second
+                });
               });
-            });
-
+            }
             await checkAvailability();
           }
         }
 
-        await page.type(".cmdPrompt", "ig");
-        await page.keyboard.press("Enter");
-        await page.evaluate(() => {
-          return new Promise((resolve) => {
-            setTimeout(resolve, 3000); // waits for 1 second
+        if (!sb) {
+          await page.type(".cmdPrompt", "ig");
+          await page.keyboard.press("Enter");
+          await page.evaluate(() => {
+            return new Promise((resolve) => {
+              setTimeout(resolve, 3000); // waits for 1 second
+            });
           });
-        });
+        }
       }
 
       if (
-        lastCmdResponseText.includes("REQUEST NEW AVAILABILITY") ||
-        doRunAnAfterOneTime
+        (lastCmdResponseText.includes("REQUEST NEW AVAILABILITY") && !sb) ||
+        (doRunAnAfterOneTime === "true" && !sb)
       ) {
         console.log("doRunAnAfterOne");
         await page.type(".cmdPrompt", an);
@@ -335,14 +348,24 @@ const pup = async (
 
 const an = process.env.an;
 const ss = process.env.ss;
+const sb = process.env.sb;
 const mail = process.env.mail;
 const user_name = process.env.user;
 const officeId = process.env.OfficeID;
 const password = process.env.Password;
 const doRunAnAfterOneTime = process.env.doRunAnAfterOneTime;
 
-console.log(an, ss, mail, user_name, officeId, password, doRunAnAfterOneTime);
-pup(an, ss, mail, user_name, officeId, password, doRunAnAfterOneTime);
+console.log(
+  an,
+  ss,
+  sb,
+  mail,
+  user_name,
+  officeId,
+  password,
+  doRunAnAfterOneTime
+);
+pup(an, ss, sb, mail, user_name, officeId, password, doRunAnAfterOneTime);
 
 app.get("/", (req, res) => {
   res.redirect("/he");
