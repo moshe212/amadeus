@@ -29,21 +29,23 @@ app.use(
 );
 
 const sendMail = (an, mail) => {
-  let mailOptions = {
-    from: "Amadeus.nm2024@gmail.com",
-    to: mail,
-    subject: `you got DK1 on ${an}`,
-    text: `go to browser..`,
-  };
+  return new Promise((resolve, reject) => {
+    let mailOptions = {
+      from: "Amadeus.nm2024@gmail.com",
+      to: mail,
+      subject: `you got DK1 on ${an}`,
+      text: `go to browser..`,
+    };
 
-  transporter.sendMail(mailOptions, function (error, info) {
-    if (error) {
-      console.log(error);
-      res.send("error"); // If error occurs, send error response
-    } else {
-      console.log("Email sent: " + info.response);
-      res.send("success"); // If success, send success response
-    }
+    transporter.sendMail(mailOptions, function (error, info) {
+      if (error) {
+        console.log(error);
+        reject("error");
+      } else {
+        console.log("Email sent: " + info.response);
+        resolve("success");
+      }
+    });
   });
 };
 
@@ -119,11 +121,21 @@ const pup = async (
   let tabTwoStatus = process.env.isTwoTabsWork;
   let isNewTabOpen = false;
 
-  const checkAvailability = async () => {
+  const checkAvailability = async (isFirstRun = false) => {
     console.log("Counter: ", counter);
 
     // Run SB command only if sb param exists
     if (sb) {
+      if (isFirstRun) {
+        await page.type(".cmdPrompt", ss);
+        await page.keyboard.press("Enter");
+
+        await page.evaluate(() => {
+          return new Promise((resolve) => {
+            setTimeout(resolve, 3000); // waits for 3 second
+          });
+        });
+      }
       await page.type(".cmdPrompt", sb);
       await page.keyboard.press("Enter");
       await page.evaluate(
@@ -143,102 +155,130 @@ const pup = async (
     const lastCmdResponseText = await page.evaluate(() => {
       const elements = document.querySelectorAll(".cmdResponse");
       const lastElement = elements[elements.length - 1]; // Get the last element
+      console.log({ lastElement });
+      console.log("text", lastElement.innerText);
       return lastElement ? lastElement.innerText : null; // Return its text content, or null if not found
     });
 
-    console.log(lastCmdResponseText);
+    console.log({ lastCmdResponseText });
+
     if (lastCmdResponseText.includes("DK1")) {
       console.log("Availability confirmed.");
-      sendMail(an, mail);
+      const mailStatus = await sendMail(an, mail);
+      console.log("Mail status:", mailStatus);
+
+      console.log("sb after DK1", sb);
       // Do something after confirmation
       // await browser.close(); // Assuming 'browser' is accessible in this scope
+      if (sb) {
+        console.log("Starting RT interval");
+        // Initial RT command
+        await page.type(".cmdPrompt", "RT");
+        await page.keyboard.press("Enter");
 
-      switch (tabNum) {
-        case 1:
-          tabOneStatus = false;
-          break;
-        case 2:
-          tabTwoStatus = false;
-          break;
+        // Set up interval for RT
+        const interval = setInterval(async () => {
+          try {
+            await page.type(".cmdPrompt", "RT");
+            await page.keyboard.press("Enter");
+            console.log("RT command executed at:", new Date().toISOString());
+          } catch (error) {
+            console.error("Error executing RT:", error);
+          }
+        }, 180000);
+
+        // Keep the process running
+        await new Promise(() => {});
       }
 
-      if (!tabOneStatus && !tabTwoStatus) {
-        return; // Stop further execution
-      }
+      if (!sb) {
+        switch (tabNum) {
+          case 1:
+            tabOneStatus = false;
+            break;
+          case 2:
+            tabTwoStatus = false;
+            break;
+        }
 
-      if (!isNewTabOpen) {
-        // Click on the button that opens a new tab in the UI program
-        await page.click("#navbar_desktop_toolbar_new"); // Update the selector for your button
-        await page.evaluate(() => {
-          return new Promise((resolve) => {
-            setTimeout(resolve, 2000); // waits for 2 seconds
+        if (!tabOneStatus && !tabTwoStatus) {
+          return; // Stop further execution
+        }
+
+        if (!isNewTabOpen) {
+          // Click on the button that opens a new tab in the UI program
+          await page.click("#navbar_desktop_toolbar_new"); // Update the selector for your button
+          await page.evaluate(() => {
+            return new Promise((resolve) => {
+              setTimeout(resolve, 2000); // waits for 2 seconds
+            });
           });
-        });
 
-        // await page.evaluate(() => {
-        //   const commandPageTab = Array.from(
-        //     document.querySelectorAll("li")
-        //   ).find((li) => li.getAttribute("title") === "Command page 2");
-        //   if (commandPageTab) {
-        //     commandPageTab.click();
-        //   }
-        // });
+          // await page.evaluate(() => {
+          //   const commandPageTab = Array.from(
+          //     document.querySelectorAll("li")
+          //   ).find((li) => li.getAttribute("title") === "Command page 2");
+          //   if (commandPageTab) {
+          //     commandPageTab.click();
+          //   }
+          // });
 
-        // Wait for a specific condition or selector
-        await page.waitForSelector(".cmdPrompt", {
-          visible: true,
-          timeout: 120000,
-        });
-
-        await page.type(".cmdPrompt", an);
-        await page.keyboard.press("Enter");
-        await page.evaluate(() => {
-          return new Promise((resolve) => {
-            setTimeout(resolve, 5000); // waits for 5 second
+          // Wait for a specific condition or selector
+          await page.waitForSelector(".cmdPrompt", {
+            visible: true,
+            timeout: 120000,
           });
-        });
 
-        await checkAvailability();
-      } else {
-        const tabName = tabNum === 1 ? "Command page 2" : "Command page 1";
-        tabNum = tabNum === 1 ? 2 : 1;
-
-        // await page.evaluate((tabName) => {
-        //   const commandPageTab = Array.from(
-        //     document.querySelectorAll("span")
-        //   ).find((span) => span.innerText === tabName);
-        //   if (commandPageTab) {
-        //     commandPageTab.click();
-        //   }
-        // }, tabName);
-
-        // Wait for a specific condition or selector
-        await page.waitForSelector(".cmdPrompt", {
-          visible: true,
-          timeout: 120000,
-        });
-
-        await page.type(".cmdPrompt", an);
-        await page.keyboard.press("Enter");
-        await page.evaluate(() => {
-          return new Promise((resolve) => {
-            setTimeout(resolve, 5000); // waits for 5 second
+          await page.type(".cmdPrompt", an);
+          await page.keyboard.press("Enter");
+          await page.evaluate(() => {
+            return new Promise((resolve) => {
+              setTimeout(resolve, 5000); // waits for 5 second
+            });
           });
-        });
 
-        await checkAvailability();
+          await checkAvailability();
+        } else {
+          const tabName = tabNum === 1 ? "Command page 2" : "Command page 1";
+          tabNum = tabNum === 1 ? 2 : 1;
+
+          // await page.evaluate((tabName) => {
+          //   const commandPageTab = Array.from(
+          //     document.querySelectorAll("span")
+          //   ).find((span) => span.innerText === tabName);
+          //   if (commandPageTab) {
+          //     commandPageTab.click();
+          //   }
+          // }, tabName);
+
+          // Wait for a specific condition or selector
+          await page.waitForSelector(".cmdPrompt", {
+            visible: true,
+            timeout: 120000,
+          });
+
+          await page.type(".cmdPrompt", an);
+          await page.keyboard.press("Enter");
+          await page.evaluate(() => {
+            return new Promise((resolve) => {
+              setTimeout(resolve, 5000); // waits for 5 second
+            });
+          });
+
+          await checkAvailability();
+        }
       }
     } else {
       await page.evaluate(() => {
         return new Promise((resolve) => {
-          setTimeout(resolve, 2000); // waits for 1 second
+          setTimeout(resolve, 3000); // waits for 1 second
         });
       });
 
       // await page.click("#navbar_desktop_toolbar_new"); // Update the selector for your button
 
       counter++;
-      if (counter > 2) {
+      if (counter > 2 && !sb) {
         counter = 0;
         tabRunCounter++;
 
@@ -340,7 +380,7 @@ const pup = async (
     }
   };
 
-  await checkAvailability();
+  await checkAvailability(true);
 
   // Close the browser when done
   //   await browser.close();
